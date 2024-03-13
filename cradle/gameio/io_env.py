@@ -9,17 +9,18 @@ import time
 import ctypes
 
 from ahk import AHK
-import pydirectinput
+import pynput
 
 from cradle.utils import Singleton
 from cradle.config import Config
 from cradle.log import Logger
-
+from pynput.keyboard import Controller
 
 config = Config()
 logger = Logger()
 
 PUL = ctypes.POINTER(ctypes.c_ulong)
+keyboard = Controller()
 
 
 class KeyBdInput(ctypes.Structure):
@@ -118,7 +119,7 @@ class IOEnvironment(metaclass=Singleton):
         self.ahk = AHK()
 
         #PyDirectInput is only used for key pressing, so no need for mouse checks
-        pydirectinput.FAILSAFE = False
+        #pydirectinput.FAILSAFE = False
 
 
     def pop_held_button(self, button):
@@ -167,11 +168,11 @@ class IOEnvironment(metaclass=Singleton):
     def pop_held_keys(self, key):
 
         if self.check_held_keys(keys = [key]):
-            pydirectinput.keyUp(key)
+            keyboard.release(key)
             time.sleep(self.RELEASE_DEFAULT_BLOCK_TIME)
             self.held_keys.pop()
         else:
-            pydirectinput.keyUp(key) # Just as a guarantee to up an untracked key
+            keyboard.release(key) # Just as a guarantee to up an untracked key
             logger.warn(f'Key {key} was not being held at top.')
 
         self._to_message(self.held_keys, self.ACTION_RELEASE, self.KEY_TYPE)
@@ -189,7 +190,7 @@ class IOEnvironment(metaclass=Singleton):
             }
             self.held_keys.append(entry)
 
-            pydirectinput.keyDown(key)
+            keyboard.press(key)
 
             time.sleep(self.HOLD_DEFAULT_BLOCK_TIME)
 
@@ -237,7 +238,7 @@ class IOEnvironment(metaclass=Singleton):
             if t <= 0:
                 key = e[self.KEY_KEY]
                 logger.warn(f'Releasing key {key} after timeout.')
-                pydirectinput.keyUp(key)
+                keyboard.release(key)
                 time.sleep(0.1)
 
             else:
@@ -270,7 +271,7 @@ class IOEnvironment(metaclass=Singleton):
         self.backup_held_keys = self.held_keys.copy()
         if self.backup_held_keys is not None and self.backup_held_keys != []:
             for e in self.backup_held_keys:
-                pydirectinput.keyUp(e[self.KEY_KEY])
+                keyboard.release(e[self.KEY_KEY])
 
         self.held_keys = []
 
@@ -297,7 +298,7 @@ class IOEnvironment(metaclass=Singleton):
 
         if self.backup_held_keys is not None and self.backup_held_keys != []:
             for e in self.backup_held_keys:
-                pydirectinput.keyDown(e[self.KEY_KEY])
+                keyboard.press(e[self.KEY_KEY])
 
             keys_hold = True
 
@@ -502,13 +503,13 @@ class IOEnvironment(metaclass=Singleton):
         else:
 
             if duration is None:
-                pydirectinput.keyDown(key)
+                keyboard.press(key)
                 time.sleep(.2)
-                pydirectinput.keyUp(key)
+                keyboard.release(key)
             else:
-                pydirectinput.keyDown(key)
+                keyboard.press(key)
                 time.sleep(duration)
-                pydirectinput.keyUp(key)
+                keyboard.release(key)
 
 
     def key_hold(self, key, duration=None):
@@ -524,9 +525,9 @@ class IOEnvironment(metaclass=Singleton):
         else:
 
             if duration is not None:
-                pydirectinput.keyDown(key)
+                keyboard.press(key)
                 time.sleep(duration)
-                pydirectinput.keyUp(key)
+                keyboard.release(key)
             else:
                 self.put_held_keys(key)
 
